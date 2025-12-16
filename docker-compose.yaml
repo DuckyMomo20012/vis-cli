@@ -1,0 +1,16 @@
+services:
+  mockmoon:
+    image: mockoon/cli:latest
+    container_name: mockmoon
+    ports:
+      - "3000:3000"
+    command: >
+      --data /data/googleapiscom-vision.json
+      --port 3000
+    volumes:
+      - ./mockoon/googleapiscom-vision.json:/data/googleapiscom-vision.json
+    networks:
+      - vis_cli
+
+networks:
+  vis_cli:
