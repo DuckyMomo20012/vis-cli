@@ -4,9 +4,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from vis_cli.libs.ocr_engine import Label, OCRResult
 from vis_cli.libs.vision_api import (
-    Label,
-    VisionAnalysisResult,
     VisionAPIError,
     analyze_image_with_apikey,
 )
@@ -18,9 +17,10 @@ def test_label_creation():
     assert label.score == 0.95
 
 
-def test_vision_analysis_result_success():
-    result = VisionAnalysisResult(
+def test_ocr_result_success():
+    result = OCRResult(
         image_path="test.jpg",
+        engine="vision_api",
         full_text="Hello World",
         labels=[Label("Text", 0.9)],
     )
@@ -28,8 +28,8 @@ def test_vision_analysis_result_success():
     assert result.error is None
 
 
-def test_vision_analysis_result_error():
-    result = VisionAnalysisResult(image_path="test.jpg", error="API Error")
+def test_ocr_result_error():
+    result = OCRResult(image_path="test.jpg", engine="vision_api", error="API Error")
     assert result.success is False
     assert result.error == "API Error"
 

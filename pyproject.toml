@@ -5,6 +5,8 @@ description = "Batch image OCR and label extraction tool using Google Cloud Visi
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "Pillow>=10.0.0",
+    "pytesseract>=0.3.13",
     "python-dotenv>=1.2.1",
     "requests>=2.32.5",
 ]
