@@ -20,7 +20,6 @@
   - [Installation](#gear-installation)
   - [Usage](#eyes-usage)
   - [Engine Comparison](#engine-comparison)
-  - [Programmatic Usage](#programmatic-usage)
 - [Development](#hammer_and_wrench-development)
   - [Scripts](#rocket-scripts)
 - [Contributing](#wave-contributing)
@@ -258,38 +257,6 @@ output/
   consistency.
 - **Error Handling**: Both engines return partial results when possible, with
   error details in the `error` field.
-
-### Programmatic Usage
-
-You can use the engines directly in your Python code:
-
-```python
-from vis_cli.libs.vision_api import VisionAPIEngine
-from vis_cli.libs.tesseract_engine import TesseractEngine
-
-# Vision API
-vision_engine = VisionAPIEngine(api_key="your-key")
-result = vision_engine.analyze_image("image.jpg")
-
-# Tesseract
-tesseract_engine = TesseractEngine(lang="eng")
-result = tesseract_engine.analyze_image("image.jpg")
-
-# Both return OCRResult with same structure
-print(f"Engine: {result.engine}")
-print(f"Text: {result.full_text}")
-print(f"Confidence: {result.confidence}")
-print(f"Labels: {result.labels}")
-print(f"Success: {result.success}")
-```
-
-**Quick Demo:**
-
-Test both engines on the same image:
-
-```bash
-python demo.py path/to/image.jpg
-```
 
 #### Architecture
 
