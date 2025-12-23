@@ -1,42 +1,77 @@
 import base64
 import logging
 import os
-from dataclasses import dataclass, field
 from pathlib import Path
 
 import requests
 
+from vis_cli.libs.ocr_engine import Label, OCREngine, OCRResult
+
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class Label:
-    description: str
-    score: float
-
-
-@dataclass
-class VisionAnalysisResult:
-    image_path: str
-    full_text: str | None = None
-    labels: list[Label] = field(default_factory=list)
-    error: str | None = None
-
-    @property
-    def success(self) -> bool:
-        return self.error is None
 
 
 class VisionAPIError(Exception):
     pass
 
 
-def analyze_image_with_apikey(image_path: str | Path) -> VisionAnalysisResult:
+class VisionAPIEngine(OCREngine):
+    """OCR engine using Google Cloud Vision API."""
+
+    def __init__(self, api_key: str | None = None, base_url: str | None = None):
+        """
+        Initialize Vision API engine.
+
+        Args:
+            api_key: Google Cloud Vision API key (defaults to API_KEY env var)
+            base_url: Base URL for the API (defaults to BASE_URL env var or standard endpoint)
+        """
+        self.api_key = api_key or os.environ.get("API_KEY")
+        self.base_url = base_url or os.environ.get(
+            "BASE_URL", "https://vision.googleapis.com/v1/images:annotate"
+        )
+
+        if not self.api_key:
+            raise VisionAPIError("API_KEY must be provided or set as environment variable")
+
+    @property
+    def name(self) -> str:
+        return "vision_api"
+
+    def analyze_image(self, image_path: str | Path) -> OCRResult:
+        """
+        Analyze image using Google Cloud Vision API.
+
+        Args:
+            image_path: Path to the image file
+
+        Returns:
+            OCRResult with extracted text and labels
+        """
+        return analyze_image_with_apikey(image_path, self.api_key, self.base_url)
+
+
+def analyze_image_with_apikey(
+    image_path: str | Path, api_key: str | None = None, base_url: str | None = None
+) -> OCRResult:
+    """
+    Analyze an image using Google Cloud Vision API.
+
+    Args:
+        image_path: Path to the image file
+        api_key: Google Cloud Vision API key (defaults to API_KEY env var)
+        base_url: Base URL for the API (defaults to BASE_URL env var)
+
+    Returns:
+        OCRResult with extracted text and labels
+    """
     image_path = Path(image_path)
 
-    base_url = os.environ.get("BASE_URL", "https://vision.googleapis.com/v1/images:annotate")
+    if base_url is None:
+        base_url = os.environ.get("BASE_URL", "https://vision.googleapis.com/v1/images:annotate")
 
-    api_key = os.environ.get("API_KEY")
+    if api_key is None:
+        api_key = os.environ.get("API_KEY")
+
     if not api_key:
         raise VisionAPIError("API_KEY environment variable is not set")
 
@@ -68,7 +103,7 @@ def analyze_image_with_apikey(image_path: str | Path) -> VisionAnalysisResult:
         if response.status_code != 200:
             error_msg = f"HTTP {response.status_code}: {response.text}"
             logger.error("API error for %s: %s", image_path.name, error_msg)
-            return VisionAnalysisResult(image_path=str(image_path), error=error_msg)
+            return OCRResult(image_path=str(image_path), engine="vision_api", error=error_msg)
 
         result = response.json()
         responses = result.get("responses", [])
@@ -76,15 +111,15 @@ def analyze_image_with_apikey(image_path: str | Path) -> VisionAnalysisResult:
         if not responses:
             error_msg = "No response from Vision API"
             logger.error("Empty response for %s", image_path.name)
-            return VisionAnalysisResult(image_path=str(image_path), error=error_msg)
+            return OCRResult(image_path=str(image_path), engine="vision_api", error=error_msg)
 
         data = responses[0]
 
         # Extract data even if there's an error (per Vision API docs)
         full_text = data.get("fullTextAnnotation", {}).get("text")
         labels = [
-            Label(description=l["description"], score=float(l["score"]))
-            for l in data.get("labelAnnotations", [])
+            Label(description=label["description"], score=float(label["score"]))
+            for label in data.get("labelAnnotations", [])
         ]
 
         # Check for errors but still return partial results
@@ -97,8 +132,9 @@ def analyze_image_with_apikey(image_path: str | Path) -> VisionAnalysisResult:
             )
             logger.warning("Partial result for %s: %s", image_path.name, error_msg)
 
-        return VisionAnalysisResult(
+        return OCRResult(
             image_path=str(image_path),
+            engine="vision_api",
             full_text=full_text,
             labels=labels,
             error=error_msg,
@@ -107,4 +143,4 @@ def analyze_image_with_apikey(image_path: str | Path) -> VisionAnalysisResult:
     except (requests.exceptions.RequestException, OSError) as e:
         error_msg = str(e)
         logger.error("Error processing %s: %s", image_path.name, error_msg)
-        return VisionAnalysisResult(image_path=str(image_path), error=error_msg)
+        return OCRResult(image_path=str(image_path), engine="vision_api", error=error_msg)
